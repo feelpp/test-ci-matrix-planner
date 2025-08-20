@@ -1,0 +1,194 @@
+name: Test CI Matrix Planner
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix-tests:
+    name: Planner E2E (${{ matrix.case.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - name: "targets 3 distros"
+            msg: |
+              targets=fedora:42,debian:13,ubuntu:24.04
+            expect: >
+              {"mode":"components",
+               "enabled_jobs":["feelpp","testsuite","toolboxes","mor","python"],
+               "targets":["fedora:42","debian:13","ubuntu:24.04"]}
+
+          - name: "only feelpp + 2 distros"
+            msg: |
+              only=feelpp
+              targets=fedora:42,ubuntu:22.04
+            expect: >
+              {"mode":"components",
+               "enabled_jobs":["feelpp"],
+               "only_jobs":["feelpp"],
+               "targets":["fedora:42","ubuntu:22.04"]}
+
+          - name: "mode full spack"
+            msg: |
+              mode=full
+              targets=ubuntu:24.04,debian:13
+            expect: >
+              {"mode":"full",
+               "enabled_jobs":["feelpp-spack"],
+               "targets":["ubuntu:24.04","debian:13"]}
+
+          - name: "include+exclude"
+            msg: |
+              include=fedora:42
+              exclude=ubuntu:22.04
+            expect: >
+              {"mode":"components",
+               "enabled_jobs":["feelpp","testsuite","toolboxes","mor","python"],
+               "targets":["ubuntu:24.04","debian:13","debian:12","fedora:42"]}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run planner
+        id: plan
+        uses: feelpp/ci-matrix-planner@main   # or @v1.x
+        with:
+          config-path: .github/plan-ci.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          message-override: ${{ matrix.case.msg }}
+
+      - name: Show outputs (debug)
+        run: |
+          echo "MODE=${{ steps.plan.outputs.mode }}"
+          echo "ENABLED_JOBS=${{ steps.plan.outputs.enabled_jobs }}"
+          echo "ONLY_JOBS=${{ steps.plan.outputs.only_jobs }}"
+          echo "SKIP_JOBS=${{ steps.plan.outputs.skip_jobs }}"
+          echo "TARGETS_LIST=${{ steps.plan.outputs.targets_list }}"
+          echo "TARGETS_JSON=${{ steps.plan.outputs.targets_json }}"
+          echo "RAW=${{ steps.plan.outputs.raw_message }}"
+          echo "DIRS=${{ steps.plan.outputs.raw_directives }}"
+
+      - name: Assert expectations
+        run: node scripts/assert.js
+        env:
+          EXPECT:        ${{ matrix.case.expect }}
+          MODE:          ${{ steps.plan.outputs.mode }}
+          ONLY_JOBS:     ${{ steps.plan.outputs.only_jobs }}
+          SKIP_JOBS:     ${{ steps.plan.outputs.skip_jobs }}
+          ENABLED_JOBS:  ${{ steps.plan.outputs.enabled_jobs }}
+          TARGETS_JSON:  ${{ steps.plan.outputs.targets_json }}
+          TARGETS_LIST:  ${{ steps.plan.outputs.targets_list }}
+
+      # ---- NEW: Write a nice summary table to the job summary ----
+      - name: Write summary
+        shell: bash
+        run: |
+          {
+            echo "## CI Matrix Planner – E2E (${ { matrix.case.name }})"
+            echo ""
+            echo "**Message override**"
+            echo ""
+            echo '```'
+            printf '%s\n' "${{ matrix.case.msg }}"
+            echo '```'
+            echo ""
+            echo "**Expected**"
+            echo ""
+            echo '```json'
+            printf '%s\n' '${{ matrix.case.expect }}'
+            echo '```'
+            echo ""
+            echo "**Planner outputs**"
+            echo ""
+            echo "| Field | Value |"
+            echo "|------:|:------|"
+            echo "| mode | `${{ steps.plan.outputs.mode }}` |"
+            echo "| enabled_jobs | `${{ steps.plan.outputs.enabled_jobs }}` |"
+            echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
+            echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
+            echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
+            echo ""
+            echo "**targets_json**"
+            echo ""
+            echo '```json'
+            printf '%s\n' '${{ steps.plan.outputs.targets_json }}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # ---- OPTIONAL: store raw outputs as artifact for later inspection ----
+      - name: Save planner outputs
+        if: always()
+        run: |
+          mkdir -p _out
+          cat > _out/outputs.json <<'JSON'
+          {
+            "mode": "${{ steps.plan.outputs.mode }}",
+            "enabled_jobs": "${{ steps.plan.outputs.enabled_jobs }}",
+            "only_jobs": "${{ steps.plan.outputs.only_jobs }}",
+            "skip_jobs": "${{ steps.plan.outputs.skip_jobs }}",
+            "targets_list": "${{ steps.plan.outputs.targets_list }}",
+            "targets_json": ${ { steps.plan.outputs.targets_json } }
+          }
+          JSON
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: planner-outputs-${{ matrix.case.name }}
+          path: _out/outputs.json
+
+  pr-commit-smoke:
+    name: PR commit smoke (no override)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run planner (no override)
+        id: plan
+        uses: feelpp/ci-matrix-planner@main
+        with:
+          config-path: .github/plan-ci.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Show outputs
+        run: |
+          echo "MODE=${{ steps.plan.outputs.mode }}"
+          echo "ENABLED_JOBS=${{ steps.plan.outputs.enabled_jobs }}"
+          echo "ONLY_JOBS=${{ steps.plan.outputs.only_jobs }}"
+          echo "SKIP_JOBS=${{ steps.plan.outputs.skip_jobs }}"
+          echo "TARGETS_LIST=${{ steps.plan.outputs.targets_list }}"
+          echo "TARGETS_JSON=${{ steps.plan.outputs.targets_json }}"
+          echo "RAW=${{ steps.plan.outputs.raw_message }}"
+          echo "DIRS=${{ steps.plan.outputs.raw_directives }}"
+      - name: Write smoke summary
+        run: |
+          {
+            echo "## PR-commit smoke (no override)"
+            echo ""
+            echo "| Field | Value |"
+            echo "|------:|:------|"
+            echo "| mode | `${{ steps.plan.outputs.mode }}` |"
+            echo "| enabled_jobs | `${{ steps.plan.outputs.enabled_jobs }}` |"
+            echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
+            echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
+            echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
+            echo ""
+            echo "**targets_json**"
+            echo ""
+            echo '```json'
+            printf '%s\n' '${{ steps.plan.outputs.targets_json }}'
+            echo '```'
+            echo ""
+            echo "**raw message / directives**"
+            echo ""
+            echo '```'
+            printf '%s\n' '${{ steps.plan.outputs.raw_message }}'
+            echo '```'
+            echo '```json'
+            printf '%s\n' '${{ steps.plan.outputs.raw_directives }}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
