@@ -9,6 +9,9 @@ permissions:
   contents: read
 
 jobs:
+  # -----------------------------
+  # Deterministic end-to-end tests
+  # -----------------------------
   matrix-tests:
     name: Planner E2E (${{ matrix.case.name }})
     runs-on: ubuntu-latest
@@ -59,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Use the action from the marketplace; replace @main with a tag like @v1.4 if desired
+      # Use the action you want to validate (pin to a tag if you prefer)
       - name: Run planner
         id: plan
         uses: feelpp/ci-matrix-planner@main
@@ -126,20 +129,23 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-
-  # Optional: real PR-commit path without message override
+  # ----------------------------------------------------
+  # Real PR path (no override): read directives from PR
+  # ----------------------------------------------------
   pr-commit-smoke:
     name: PR commit smoke (no override)
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v4
+
       - name: Run planner (no override)
         id: plan
         uses: feelpp/ci-matrix-planner@main
         with:
           config-path: .github/plan-ci.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Show outputs
         run: |
           echo "MODE=${{ steps.plan.outputs.mode }}"
@@ -150,11 +156,76 @@ jobs:
           echo "TARGETS_JSON=${{ steps.plan.outputs.targets_json }}"
           echo "RAW=${{ steps.plan.outputs.raw_message }}"
           echo "DIRS=${{ steps.plan.outputs.raw_directives }}"
+
       - name: Write smoke summary
         shell: bash
         run: |
           {
             echo "## PR-commit smoke (no override)"
+            echo
+            echo "| Field | Value |"
+            echo "|------:|:------|"
+            echo "| mode | `${{ steps.plan.outputs.mode }}` |"
+            echo "| enabled_jobs | `${{ steps.plan.outputs.enabled_jobs }}` |"
+            echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
+            echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
+            echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
+            echo
+            echo "**targets_json**"
+            echo
+            echo '```json'
+            printf '%s\n' '${{ steps.plan.outputs.targets_json }}'
+            echo '```'
+            echo
+            echo "**raw message / directives**"
+            echo
+            echo '```'
+            printf '%s\n' '${{ steps.plan.outputs.raw_message }}'
+            echo '```'
+            echo '```json'
+            printf '%s\n' '${{ steps.plan.outputs.raw_directives }}'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # -------------------------------------------------------
+  # Real PUSH path (no override): read directives from head
+  # -------------------------------------------------------
+  push-commit-smoke:
+    name: Push commit smoke (no override)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show head commit (debug)
+        run: |
+          echo "HEAD_SHA=${{ github.sha }}"
+          echo "HEAD_MSG:"
+          git log -1 --pretty=%B || true
+
+      - name: Run planner (no override)
+        id: plan
+        uses: feelpp/ci-matrix-planner@main
+        with:
+          config-path: .github/plan-ci.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Show outputs
+        run: |
+          echo "MODE=${{ steps.plan.outputs.mode }}"
+          echo "ENABLED_JOBS=${{ steps.plan.outputs.enabled_jobs }}"
+          echo "ONLY_JOBS=${{ steps.plan.outputs.only_jobs }}"
+          echo "SKIP_JOBS=${{ steps.plan.outputs.skip_jobs }}"
+          echo "TARGETS_LIST=${{ steps.plan.outputs.targets_list }}"
+          echo "TARGETS_JSON=${{ steps.plan.outputs.targets_json }}"
+          echo "RAW=${{ steps.plan.outputs.raw_message }}"
+          echo "DIRS=${{ steps.plan.outputs.raw_directives }}"
+
+      - name: Write smoke summary
+        shell: bash
+        run: |
+          {
+            echo "## Push-commit smoke (no override)"
             echo
             echo "| Field | Value |"
             echo "|------:|:------|"
