@@ -9,9 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  # -----------------------------
-  # Deterministic end-to-end tests
-  # -----------------------------
   matrix-tests:
     name: Planner E2E (${{ matrix.case.name }})
     runs-on: ubuntu-latest
@@ -62,7 +59,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Use the action you want to validate (pin to a tag if you prefer)
       - name: Run planner
         id: plan
         uses: feelpp/ci-matrix-planner@main
@@ -93,7 +89,7 @@ jobs:
           TARGETS_JSON:  ${{ steps.plan.outputs.targets_json }}
           TARGETS_LIST:  ${{ steps.plan.outputs.targets_list }}
 
-      # Summary table rendered in the job "Summary" tab
+      # Safe summary (no backticks → use <code>...</code>)
       - name: Write summary
         shell: bash
         run: |
@@ -116,11 +112,11 @@ jobs:
             echo
             echo "| Field | Value |"
             echo "|------:|:------|"
-            echo "| mode | `${{ steps.plan.outputs.mode }}` |"
-            echo "| enabled_jobs | `${{ steps.plan.outputs.enabled_jobs }}` |"
-            echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
-            echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
-            echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
+            echo "| mode | <code>${{ steps.plan.outputs.mode }}</code> |"
+            echo "| enabled_jobs | <code>${{ steps.plan.outputs.enabled_jobs }}</code> |"
+            echo "| only_jobs | <code>${{ steps.plan.outputs.only_jobs }}</code> |"
+            echo "| skip_jobs | <code>${{ steps.plan.outputs.skip_jobs }}</code> |"
+            echo "| targets_list | <code>${{ steps.plan.outputs.targets_list }}</code> |"
             echo
             echo "**targets_json**"
             echo
@@ -129,9 +125,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # ----------------------------------------------------
-  # Real PR path (no override): read directives from PR
-  # ----------------------------------------------------
+  # Real PR path (no override)
   pr-commit-smoke:
     name: PR commit smoke (no override)
     runs-on: ubuntu-latest
@@ -165,11 +159,11 @@ jobs:
             echo
             echo "| Field | Value |"
             echo "|------:|:------|"
-            echo "| mode | `${{ steps.plan.outputs.mode }}` |"
-            echo "| enabled_jobs | `${{ steps.plan.outputs.enabled_jobs }}` |"
-            echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
-            echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
-            echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
+            echo "| mode | <code>${{ steps.plan.outputs.mode }}</code> |"
+            echo "| enabled_jobs | <code>${{ steps.plan.outputs.enabled_jobs }}</code> |"
+            echo "| only_jobs | <code>${{ steps.plan.outputs.only_jobs }}</code> |"
+            echo "| skip_jobs | <code>${{ steps.plan.outputs.skip_jobs }}</code> |"
+            echo "| targets_list | <code>${{ steps.plan.outputs.targets_list }}</code> |"
             echo
             echo "**targets_json**"
             echo
@@ -187,9 +181,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # -------------------------------------------------------
-  # Real PUSH path (no override): read directives from head
-  # -------------------------------------------------------
+  # Real PUSH path (no override)
   push-commit-smoke:
     name: Push commit smoke (no override)
     runs-on: ubuntu-latest
@@ -229,11 +221,11 @@ jobs:
             echo
             echo "| Field | Value |"
             echo "|------:|:------|"
-            echo "| mode | `${{ steps.plan.outputs.mode }}` |"
-            echo "| enabled_jobs | `${{ steps.plan.outputs.enabled_jobs }}` |"
-            echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
-            echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
-            echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
+            echo "| mode | <code>${{ steps.plan.outputs.mode }}</code> |"
+            echo "| enabled_jobs | <code>${{ steps.plan.outputs.enabled_jobs }}</code> |"
+            echo "| only_jobs | <code>${{ steps.plan.outputs.only_jobs }}</code> |"
+            echo "| skip_jobs | <code>${{ steps.plan.outputs.skip_jobs }}</code> |"
+            echo "| targets_list | <code>${{ steps.plan.outputs.targets_list }}</code> |"
             echo
             echo "**targets_json**"
             echo
