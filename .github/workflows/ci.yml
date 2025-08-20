@@ -16,6 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         case:
+          # 1) Targets only (3 distros)
           - name: "targets 3 distros"
             msg: |
               targets=fedora:42,debian:13,ubuntu:24.04
@@ -24,6 +25,7 @@ jobs:
                "enabled_jobs":["feelpp","testsuite","toolboxes","mor","python"],
                "targets":["fedora:42","debian:13","ubuntu:24.04"]}
 
+          # 2) Only feelpp + two targets
           - name: "only feelpp + 2 distros"
             msg: |
               only=feelpp
@@ -34,6 +36,7 @@ jobs:
                "only_jobs":["feelpp"],
                "targets":["fedora:42","ubuntu:22.04"]}
 
+          # 3) Full mode / spack job
           - name: "mode full spack"
             msg: |
               mode=full
@@ -43,6 +46,7 @@ jobs:
                "enabled_jobs":["feelpp-spack"],
                "targets":["ubuntu:24.04","debian:13"]}
 
+          # 4) include/exclude starting from defaults
           - name: "include+exclude"
             msg: |
               include=fedora:42
@@ -55,9 +59,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Use the action from the marketplace; replace @main with a tag like @v1.4 if desired
       - name: Run planner
         id: plan
-        uses: feelpp/ci-matrix-planner@main   # or @v1.x
+        uses: feelpp/ci-matrix-planner@main
         with:
           config-path: .github/plan-ci.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -85,27 +90,27 @@ jobs:
           TARGETS_JSON:  ${{ steps.plan.outputs.targets_json }}
           TARGETS_LIST:  ${{ steps.plan.outputs.targets_list }}
 
-      # ---- NEW: Write a nice summary table to the job summary ----
+      # Summary table rendered in the job "Summary" tab
       - name: Write summary
         shell: bash
         run: |
           {
-            echo "## CI Matrix Planner – E2E (${ { matrix.case.name }})"
-            echo ""
+            echo "## CI Matrix Planner – E2E (${{ matrix.case.name }})"
+            echo
             echo "**Message override**"
-            echo ""
+            echo
             echo '```'
             printf '%s\n' "${{ matrix.case.msg }}"
             echo '```'
-            echo ""
+            echo
             echo "**Expected**"
-            echo ""
+            echo
             echo '```json'
             printf '%s\n' '${{ matrix.case.expect }}'
             echo '```'
-            echo ""
+            echo
             echo "**Planner outputs**"
-            echo ""
+            echo
             echo "| Field | Value |"
             echo "|------:|:------|"
             echo "| mode | `${{ steps.plan.outputs.mode }}` |"
@@ -113,35 +118,37 @@ jobs:
             echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
             echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
             echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
-            echo ""
+            echo
             echo "**targets_json**"
-            echo ""
+            echo
             echo '```json'
             printf '%s\n' '${{ steps.plan.outputs.targets_json }}'
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # ---- OPTIONAL: store raw outputs as artifact for later inspection ----
+      # Optional: save raw outputs as an artifact for offline inspection
       - name: Save planner outputs
         if: always()
+        shell: bash
         run: |
           mkdir -p _out
-          cat > _out/outputs.json <<'JSON'
-          {
-            "mode": "${{ steps.plan.outputs.mode }}",
-            "enabled_jobs": "${{ steps.plan.outputs.enabled_jobs }}",
-            "only_jobs": "${{ steps.plan.outputs.only_jobs }}",
-            "skip_jobs": "${{ steps.plan.outputs.skip_jobs }}",
-            "targets_list": "${{ steps.plan.outputs.targets_list }}",
-            "targets_json": ${ { steps.plan.outputs.targets_json } }
-          }
-          JSON
+          cat > _out/outputs.json <<JSON
+{
+  "mode": "${{ steps.plan.outputs.mode }}",
+  "enabled_jobs": "${{ steps.plan.outputs.enabled_jobs }}",
+  "only_jobs": "${{ steps.plan.outputs.only_jobs }}",
+  "skip_jobs": "${{ steps.plan.outputs.skip_jobs }}",
+  "targets_list": "${{ steps.plan.outputs.targets_list }}",
+  "targets_json": ${{ steps.plan.outputs.targets_json }}
+}
+JSON
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: planner-outputs-${{ matrix.case.name }}
           path: _out/outputs.json
 
+  # Optional: real PR-commit path without message override
   pr-commit-smoke:
     name: PR commit smoke (no override)
     runs-on: ubuntu-latest
@@ -165,10 +172,11 @@ jobs:
           echo "RAW=${{ steps.plan.outputs.raw_message }}"
           echo "DIRS=${{ steps.plan.outputs.raw_directives }}"
       - name: Write smoke summary
+        shell: bash
         run: |
           {
             echo "## PR-commit smoke (no override)"
-            echo ""
+            echo
             echo "| Field | Value |"
             echo "|------:|:------|"
             echo "| mode | `${{ steps.plan.outputs.mode }}` |"
@@ -176,15 +184,15 @@ jobs:
             echo "| only_jobs | `${{ steps.plan.outputs.only_jobs }}` |"
             echo "| skip_jobs | `${{ steps.plan.outputs.skip_jobs }}` |"
             echo "| targets_list | `${{ steps.plan.outputs.targets_list }}` |"
-            echo ""
+            echo
             echo "**targets_json**"
-            echo ""
+            echo
             echo '```json'
             printf '%s\n' '${{ steps.plan.outputs.targets_json }}'
             echo '```'
-            echo ""
+            echo
             echo "**raw message / directives**"
-            echo ""
+            echo
             echo '```'
             printf '%s\n' '${{ steps.plan.outputs.raw_message }}'
             echo '```'
