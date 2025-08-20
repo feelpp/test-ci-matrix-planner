@@ -61,7 +61,7 @@ jobs:
 
       - name: Run planner
         id: plan
-        uses: feelpp/ci-matrix-planner@main
+        uses: feelpp/ci-matrix-planner@v1.6
         with:
           config-path: .github/plan-ci.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
