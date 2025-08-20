@@ -126,27 +126,6 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Optional: save raw outputs as an artifact for offline inspection
-      - name: Save planner outputs
-        if: always()
-        shell: bash
-        run: |
-          mkdir -p _out
-          cat > _out/outputs.json <<JSON
-{
-  "mode": "${{ steps.plan.outputs.mode }}",
-  "enabled_jobs": "${{ steps.plan.outputs.enabled_jobs }}",
-  "only_jobs": "${{ steps.plan.outputs.only_jobs }}",
-  "skip_jobs": "${{ steps.plan.outputs.skip_jobs }}",
-  "targets_list": "${{ steps.plan.outputs.targets_list }}",
-  "targets_json": ${{ steps.plan.outputs.targets_json }}
-}
-JSON
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: planner-outputs-${{ matrix.case.name }}
-          path: _out/outputs.json
 
   # Optional: real PR-commit path without message override
   pr-commit-smoke:
